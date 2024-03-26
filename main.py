@@ -1,8 +1,11 @@
-# This is a sample Python script.
+import time
+from pathlib import Path
+from zipfile import ZipFile
 
-# Press Mayús+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import click
+import cv2
+import numpy as np
+from PIL import Image
 
 
 @click.command()
@@ -24,7 +27,7 @@ import click
 @click.option('--negative', is_flag=True, help='Filtre puntual negatiu sobre la imatge.')
 @click.option('--averaging', type=int,
               help='Filtre convolucional d’averaging en zones de value x value.')
-@click.option('--nTiles', type=int,
+@click.option('--ntiles', type=int,
               help='nombre de tessel·les en la qual dividir la imatge. Es poden indicar diferents valors per l’eix '
                    'vertical i horitzontal, o bé especificar la mida de les tessel·les en píxels.')
 @click.option('--seekRange', type=int, help='desplaçament màxim en la cerca de tessel·les coincidents.')
@@ -35,7 +38,7 @@ import click
               help='en aquest mode no s’obrirà cap finestra del reproductor de vídeo. Ha de permetre executar el '
                    'còdec a través de Shell scripts per avaluar de forma automatitzada el rendiment de l’algorisme '
                    'implementat en funció dels diferents paràmetres de configuració.')
-def main(input, output, encode, decode, fps, binarization, negative, averaging, nTiles, seekRange, GOP, quality, batch):
+def main(input, output, encode, decode, fps, binarization, negative, averaging, ntiles, seekrange, gop, quality, batch):
     click.echo(f'Input: {input}')
     click.echo(f'Output: {output}')
     click.echo(f'Encode: {encode}')
@@ -44,14 +47,61 @@ def main(input, output, encode, decode, fps, binarization, negative, averaging, 
     click.echo(f'Binarization: {binarization}')
     click.echo(f'Negative: {negative}')
     click.echo(f'Averaging: {averaging}')
-    click.echo(f'nTiles: {nTiles}')
-    click.echo(f'Seek Range: {seekRange}')
-    click.echo(f'GOP: {GOP}')
+    click.echo(f'nTiles: {ntiles}')
+    click.echo(f'seekRange: {seekrange}')
+    click.echo(f'GOP: {gop}')
     click.echo(f'Quality: {quality}')
     click.echo(f'Batch: {batch}')
 
-# Press the green button in the gutter to run the script.
+    # Extreure imatges del ZIP
+    with ZipFile(input, 'r') as zip_ref:
+        zip_ref.extractall('temp_images')
+
+    # Aplicar filtres
+    images_dir = Path('temp_images')
+    for file_path in images_dir.iterdir():
+        if file_path.suffix in ['.png', '.bmp', '.gif']:
+            img = Image.open(file_path)
+            im_gray = img.convert('L')
+            img_array = np.array(im_gray)
+
+            if binarization is not None:
+                _, img_array = cv2.threshold(img_array, binarization, 255, cv2.THRESH_BINARY)
+
+            if negative:
+                img_array = 255 - img_array
+
+            if averaging is not None:
+                noise = np.random.random(img_array.shape)
+                noise_95 = noise > 0.95
+                im_noisy = img_array.copy()
+                im_noisy[noise_95] = 255
+                noise_05 = noise < 0.05
+                im_noisy[noise_05] = 0
+
+                kernel = np.ones((averaging, averaging), np.float32) / (averaging * averaging)
+                img_array = cv2.filter2D(im_noisy, -1, kernel)
+            img_array = Image.fromarray(img_array)
+            img_array.save(file_path)
+
+    for file_path in images_dir.iterdir():
+        if file_path.suffix in ['.png', '.bmp', '.gif']:
+            img = Image.open(file_path)
+            img.save(images_dir.joinpath(file_path.stem + '.jpg'))
+
+    image_paths = sorted(images_dir.glob('*.jpg'))
+    interval = 1.0 / fps
+    for image_path in image_paths:
+        img = cv2.imread(str(image_path))
+        cv2.imshow('Image', img)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        time.sleep(interval)
+    # esborrar la carpeta d'imatges
+    for file_path in images_dir.iterdir():
+        file_path.unlink()
+    images_dir.rmdir()
+
+
 if __name__ == '__main__':
     main()
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
