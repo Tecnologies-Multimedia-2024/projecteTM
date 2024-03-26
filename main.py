@@ -62,16 +62,21 @@ def main(input, output, encode, decode, fps, binarization, negative, averaging, 
     for file_path in images_dir.iterdir():
         if file_path.suffix in ['.png', '.bmp', '.gif']:
             img = Image.open(file_path)
-            im_gray = img.convert('L')
-            img_array = np.array(im_gray)
+            img_array = np.array(img)
 
             if binarization is not None:
+                im_gray = img.convert('L')
+                img_array = np.array(im_gray)
                 _, img_array = cv2.threshold(img_array, binarization, 255, cv2.THRESH_BINARY)
 
             if negative:
+                im_gray = img.convert('L')
+                img_array = np.array(im_gray)
                 img_array = 255 - img_array
 
             if averaging is not None:
+                im_gray = img.convert('L')
+                img_array = np.array(im_gray)
                 noise = np.random.random(img_array.shape)
                 noise_95 = noise > 0.95
                 im_noisy = img_array.copy()
