@@ -1,4 +1,4 @@
-import sys
+import threading
 import time
 from pathlib import Path
 from zipfile import ZipFile
@@ -28,28 +28,48 @@ CONV_FILTERS_DESCRIPTION = {
                  'kernel indicada.',
 }
 
-#Mètode per aplicar els filtres puntuals a la imatge
+
+# Mètode per aplicar els filtres puntuals a la imatge
 def apply_filters(img_array, filters):
+    """
+        Aplica filtres puntuals a una imatge.
+
+        Arguments: img_array (numpy.ndarray): La imatge a la qual s'aplicaran els filtres. filters (dict): Un
+        diccionari que conté els noms dels filtres com a claus i els seus paràmetres, si en té, com a valors.
+
+        Returns:
+        numpy.ndarray: La imatge després d'aplicar els filtres.
+        """
     for filter_name, filter_param in filters.items():
+        # Aplica el filtre de binarització
         if filter_name == 'binarization':
             threshold_value = int(filter_param) if filter_param is not None else 50
+            # Passar la imatge a escala de grisos si no ho està
             if len(img_array.shape) == 3:
                 img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
             _, img_array = cv2.threshold(img_array, threshold_value, 255, cv2.THRESH_BINARY)
+        # Aplica el filtre de negative
         elif filter_name == 'negative':
+            # Passar la imatge a escala de grisos si no ho està
             if len(img_array.shape) == 3:
                 img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
             img_array = 255 - img_array
+        # Aplica el filtre de contrast_stretching
         elif filter_name == 'contrast_stretching':
+            # Passar la imatge a escala de grisos si no ho està
             if len(img_array.shape) == 3:
                 img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
             img = ((img_array - np.min(img_array)) / (np.max(img_array) - np.min(img_array))) * 255
             img_array = img.astype(np.uint8)
+        # Aplica el filtre de hsv
         elif filter_name == 'hsv':
+            # Passar la imatge a RGB si no ho està
             if len(img_array.shape) == 2:
                 img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
             img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2HLS)
+        # Aplica el filtre de sepia
         elif filter_name == 'sepia':
+            # Passar la imatge a RGB si no ho està
             if len(img_array.shape) == 2:
                 img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
             sepia_matrix = np.array([[0.393, 0.769, 0.189],
@@ -60,32 +80,78 @@ def apply_filters(img_array, filters):
 
 
 def apply_conv_filters(img_array, conv_filters):
+    """
+        Aplica filtres convolucionals a una imatge.
+
+        Arguments:
+        img_array (numpy.ndarray): La imatge d'entrada.
+        conv_filters (dict): Un diccionari amb els noms dels filtres com a claus i la mida dels kernels com a valors.
+
+        Returns:
+        numpy.ndarray: La imatge després d'aplicar els filtres convolucionals.
+    """
     for filter_name, filter_param in conv_filters.items():
+        # Passar la imatge a escala de grisos si no ho està
         if len(img_array.shape) == 3:
             img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
+        # Aplica el filtre d'averaging
         if filter_name == 'averaging':
             kernel_size = int(filter_param) if filter_param is not None else 3
             img_array = cv2.blur(img_array, (kernel_size, kernel_size))
+        # Aplica el filtre de sobel
         elif filter_name == 'sobel':
             kernel_size = int(filter_param) if filter_param is not None else 3
             grad_x = cv2.Sobel(img_array, cv2.CV_64F, 1, 0, ksize=kernel_size)
             grad_y = cv2.Sobel(img_array, cv2.CV_64F, 0, 1, ksize=kernel_size)
             magnitude = np.sqrt(grad_x ** 2 + grad_y ** 2)
             img_array = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        # Aplica el filtre de sharpening
         elif filter_name == 'sharpening':
             kernel_size = int(filter_param) if filter_param is not None else 3
             kernel = np.ones((kernel_size, kernel_size), np.float32) * -1
             center_value = kernel_size * kernel_size
             kernel[int((kernel_size - 1) / 2), int((kernel_size - 1) / 2)] = center_value
             img_array = cv2.filter2D(img_array, -1, kernel)
+        # Aplica el filtre gaussià
         elif filter_name == 'gaussian':
             kernel_size = int(filter_param) if filter_param is not None else 3
             img_array = cv2.GaussianBlur(img_array, (kernel_size, kernel_size), 0)
+        # Aplica el filtre Laplacià
         elif filter_name == 'laplacian':
             kernel_size = int(filter_param) if filter_param is not None else 1
             img_array = cv2.Laplacian(img_array, cv2.CV_64F, ksize=kernel_size)
             img_array = np.uint8(np.absolute(img_array))
     return img_array
+
+
+def play_images(images_dir, fps):
+    """
+        Reprodueix una seqüència d'imatges a la velocitat especificada.
+
+        Arguments:
+        images_dir (Path): La ruta al directori que conté les imatges.
+        fps (float): Els frames per segon per a la reproducció.
+
+        Returns:
+        None
+    """
+    # Obté les imatges en JPEG
+    image_paths = sorted(images_dir.glob('*.jpg'))
+    while True:
+        interval = 1.0 / fps
+        for image_path in image_paths:
+            # Llegeix la imatge i la mostra
+            img = cv2.imread(str(image_path))
+            cv2.imshow('Image', img)
+            # Espera a prèmer la tecla 'q' per parar el vídeo
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                # esborrar la carpeta d'imatges temporals
+                for file_path in images_dir.iterdir():
+                    file_path.unlink()
+                images_dir.rmdir()
+                return
+            # Espera abans de mostrar la següent imatge
+            time.sleep(interval)
 
 
 @click.command()
@@ -120,12 +186,13 @@ def apply_conv_filters(img_array, conv_filters):
 def main(input, output, encode, decode, fps, filters, conv_filters, ntiles, seekrange, gop, quality, batch):
     filter_dict = {}
     conv_filter_dict = {}
+    # Processament dels filtres puntuals
     if filters:
         filter_dict = {
             filter_item.split('[')[0]: filter_item.split('[')[1].split(']')[0] if '[' in filter_item else None
             for filter_item in filters.split(',')
         }
-
+    # Processament dels filtres convolucionals
     if conv_filters:
         conv_filter_dict = {
             filter_item.split('[')[0]: filter_item.split('[')[1].split(']')[0] if '[' in filter_item else None
@@ -135,38 +202,33 @@ def main(input, output, encode, decode, fps, filters, conv_filters, ntiles, seek
     with ZipFile(input, 'r') as zip_ref:
         zip_ref.extractall('temp_images')
     images_dir = Path('temp_images')
+    # Llegeix les imatges de dintre el zip que estan en format JPEG, PNG BMP i GIF
     for file_path in images_dir.iterdir():
         if file_path.suffix in ['.jpg', '.png', '.bmp', '.gif']:
             img = Image.open(file_path)
             img_array = np.array(img)
+            # Aplica els filtres puntuals que s'han especificat
             img_array = apply_filters(img_array, filter_dict)
+            # Aplica els filtres convolucionals que s'han especificat
             img_array = apply_conv_filters(img_array, conv_filter_dict)
+            # Guarda les imatges amb els filtres aplicats
             img_array = Image.fromarray(img_array)
             img_array.save(file_path)
 
+    # Guarda les imatges en format JPEG
     for file_path in images_dir.iterdir():
         if file_path.suffix in ['.png', '.bmp', '.gif']:
             img = Image.open(file_path)
             img.save(images_dir.joinpath(file_path.stem + '.jpg'))
-
+    # Si s'indica l'opció output, guarda les imatges en un ZIP
     if output:
         with ZipFile(output, 'w') as new_zip:
             for file_path in images_dir.iterdir():
                 new_zip.write(file_path, file_path.name)
 
-    image_paths = sorted(images_dir.glob('*.jpg'))
-    interval = 1.0 / fps
-    while True:
-        for image_path in image_paths:
-            img = cv2.imread(str(image_path))
-            cv2.imshow('Image', img)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                # esborrar la carpeta d'imatges
-                for file_path in images_dir.iterdir():
-                    file_path.unlink()
-                images_dir.rmdir()
-                sys.exit(0)
-            time.sleep(interval)
+    play_thread = threading.Thread(target=play_images, args=(images_dir, fps))
+    play_thread.start()
+    play_thread.join()
 
 
 if __name__ == '__main__':
