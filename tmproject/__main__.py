@@ -168,9 +168,9 @@ def play_images(images_dir, fps):
               help='Argument que indica que s’haurà d’aplicar la descodificació sobre el conjunt d’imatges d’input '
                    'provinents d’un fitxer en format propi i reproduir el conjunt d’imatges descodificat (output). ')
 @click.option('--fps', default=25, type=int, help='nombre d’imatges per segon amb les quals és reproduirà el vídeo.')
-@click.option('--filters', default=" ", help='''Lista de filtros puntuales separados por comas.
+@click.option('--filters', help='''Lista de filtros puntuales separados por comas.
 {}'''.format('\n'.join([f"{key}: {val}\n" for key, val in FILTERS_DESCRIPTION.items()])))
-@click.option('--conv_filters', default=" ", help='''Lista de filtros convolucionales separados por comas.
+@click.option('--conv_filters', help='''Lista de filtros convolucionales separados por comas.
 {}'''.format('\n'.join([f"{key}: {val}\n" for key, val in CONV_FILTERS_DESCRIPTION.items()])))
 @click.option('--ntiles', type=int,
               help='nombre de tessel·les en la qual dividir la imatge. Es poden indicar diferents valors per l’eix '
@@ -208,9 +208,11 @@ def main(input, output, encode, decode, fps, filters, conv_filters, ntiles, seek
             img = Image.open(file_path)
             img_array = np.array(img)
             # Aplica els filtres puntuals que s'han especificat
-            img_array = apply_filters(img_array, filter_dict)
+            if filters:
+                img_array = apply_filters(img_array, filter_dict)
             # Aplica els filtres convolucionals que s'han especificat
-            img_array = apply_conv_filters(img_array, conv_filter_dict)
+            if conv_filters:
+                img_array = apply_conv_filters(img_array, conv_filter_dict)
             # Guarda les imatges amb els filtres aplicats
             img_array = Image.fromarray(img_array)
             img_array.save(file_path)

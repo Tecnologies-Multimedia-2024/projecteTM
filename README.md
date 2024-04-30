@@ -1,16 +1,12 @@
 # Projecte Tecnologies Múltimedia
 
-Com hem creat el nostre entorn virtual?
+Com executar el projecte?
 1. Obrir la terminal.
-2. Ficar la següent comanda:
-    **python -m venv myenv**
-3. Instalem com a paquet editable:
-**pip install -e .**
-3. Executar i ens crea el entorn virtual.
-
-Com executem el projecte?
-1. Obrir terminal.
-2. Executar la següent comanda:
-    **python -m tmproject --help**
-On podem veure que el nom del nostre modul es **tmprojecte**.
-3. Com a sortida tindrem el llista de comandes de la practica amb un text d'ajuda.
+2. Creem l'entorn virtual:
+**python -m venv myenv**
+3. Activem l'entorn virtual:
+**.\venv\Scripts\activate**
+4. Instalem tots els paquets necessaris per a executar el projecte:
+**python setup.py install**
+5. Executem el projecte:
+**python -m tmproject --input Cubo.zip** 
