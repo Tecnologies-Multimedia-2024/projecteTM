@@ -3,7 +3,7 @@
 Com hem creat el nostre entorn virtual?
 1. Obrir la terminal.
 2. Ficar la següent comanda:
-    **py -m virtualenv venv**
+    **python -m venv myenv**
 3. Instalem com a paquet editable:
 **pip install -e .**
 3. Executar i ens crea el entorn virtual.

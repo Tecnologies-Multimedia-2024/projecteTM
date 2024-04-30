@@ -1,8 +1,0 @@
-Metadata-Version: 2.1
-Name: tmproject
-Version: 0.1.0
-Home-page: 
-Requires-Dist: click~=8.1.7
-Requires-Dist: numpy~=1.26.4
-Requires-Dist: opencv-python~=4.9.0.80
-Requires-Dist: pillow~=10.2.0
