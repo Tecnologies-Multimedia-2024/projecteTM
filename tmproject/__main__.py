@@ -83,35 +83,40 @@ def apply_conv_filters(img_array, conv_filters):
     """
     for filter_name, filter_param in conv_filters.items():
         # Passar la imatge a escala de grisos si no ho està
-        if len(img_array.shape) == 3:
-            img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
         # Aplica el filtre d'averaging
         if filter_name == 'averaging':
             kernel_size = int(filter_param) if filter_param is not None else 3
+            for i in range(3):
+                img_array[:, :, i] = cv2.blur(img_array[:, :, i], (kernel_size, kernel_size))
+
             img_array = cv2.blur(img_array, (kernel_size, kernel_size))
         # Aplica el filtre de sobel
         elif filter_name == 'sobel':
             kernel_size = int(filter_param) if filter_param is not None else 3
-            grad_x = cv2.Sobel(img_array, cv2.CV_64F, 1, 0, ksize=kernel_size)
-            grad_y = cv2.Sobel(img_array, cv2.CV_64F, 0, 1, ksize=kernel_size)
-            magnitude = np.sqrt(grad_x ** 2 + grad_y ** 2)
-            img_array = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            for i in range(3):
+                grad_x = cv2.Sobel(img_array[:, :, i], cv2.CV_64F, 1, 0, ksize=kernel_size)
+                grad_y = cv2.Sobel(img_array[:, :, i], cv2.CV_64F, 0, 1, ksize=kernel_size)
+                magnitude = np.sqrt(grad_x ** 2 + grad_y ** 2)
+                img_array[:, :, i] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         # Aplica el filtre de sharpening
         elif filter_name == 'sharpening':
             kernel_size = int(filter_param) if filter_param is not None else 3
             kernel = np.ones((kernel_size, kernel_size), np.float32) * -1
             center_value = kernel_size * kernel_size
             kernel[int((kernel_size - 1) / 2), int((kernel_size - 1) / 2)] = center_value
-            img_array = cv2.filter2D(img_array, -1, kernel)
+            for i in range(3):
+                img_array[:, :, i] = cv2.filter2D(img_array[:, :, i], -1, kernel)
         # Aplica el filtre gaussià
         elif filter_name == 'gaussian':
             kernel_size = int(filter_param) if filter_param is not None else 3
-            img_array = cv2.GaussianBlur(img_array, (kernel_size, kernel_size), 0)
+            for i in range(3):
+                img_array[:, :, i] = cv2.GaussianBlur(img_array[:, :, i], (kernel_size, kernel_size), 0)
         # Aplica el filtre Laplacià
         elif filter_name == 'laplacian':
             kernel_size = int(filter_param) if filter_param is not None else 1
-            img_array = cv2.Laplacian(img_array, cv2.CV_64F, ksize=kernel_size)
-            img_array = np.uint8(np.absolute(img_array))
+            for i in range(3):
+                img_array[:, :, i] = cv2.Laplacian(img_array[:, :, i], cv2.CV_64F, ksize=kernel_size)
+                img_array[:, :, i] = np.uint8(np.absolute(img_array[:, :, i]))
     return img_array
 
 
