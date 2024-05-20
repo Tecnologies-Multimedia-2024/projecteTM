@@ -44,38 +44,29 @@ def apply_filters(img_array, filters):
         # Aplica el filtre de binarització
         if filter_name == 'binarization':
             threshold_value = int(filter_param) if filter_param is not None else 50
-            # Passar la imatge a escala de grisos si no ho està
-            if len(img_array.shape) == 3:
-                img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
-            _, img_array = cv2.threshold(img_array, threshold_value, 255, cv2.THRESH_BINARY)
+            for i in range(3):  # Per cada canal R, G, B
+                img_array[:, :, i] = np.where(img_array[:, :, i] > threshold_value, 255, 0)
+            # Converteix l'array a uint8
+            img_array = img_array.astype(np.uint8)
         # Aplica el filtre de negative
         elif filter_name == 'negative':
-            # Passar la imatge a escala de grisos si no ho està
-            if len(img_array.shape) == 3:
-                img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
             img_array = 255 - img_array
         # Aplica el filtre de contrast_stretching
         elif filter_name == 'contrast_stretching':
-            # Passar la imatge a escala de grisos si no ho està
-            if len(img_array.shape) == 3:
-                img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
-            img = ((img_array - np.min(img_array)) / (np.max(img_array) - np.min(img_array))) * 255
-            img_array = img.astype(np.uint8)
+            for i in range(3):  # Per cada canal R, G, B
+                img_array[:, :, i] = ((img_array[:, :, i] - np.min(img_array[:, :, i])) / (np.max(img_array[:, :, i]) - np.min(img_array[:, :, i]))) * 255
+            img_array = img_array.astype(np.uint8)
         # Aplica el filtre de hsv
         elif filter_name == 'hsv':
-            # Passar la imatge a RGB si no ho està
-            if len(img_array.shape) == 2:
-                img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
             img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2HLS)
         # Aplica el filtre de sepia
         elif filter_name == 'sepia':
-            # Passar la imatge a RGB si no ho està
-            if len(img_array.shape) == 2:
-                img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
             sepia_matrix = np.array([[0.393, 0.769, 0.189],
                                      [0.349, 0.686, 0.168],
                                      [0.272, 0.534, 0.131]])
-            img_array = cv2.transform(img_array, sepia_matrix)
+            img_array = img_array @ sepia_matrix.T
+            img_array = np.clip(img_array, 0, 255)
+            img_array = img_array.astype(np.uint8)
     return img_array
 
 
