@@ -105,37 +105,6 @@ def read_images_from_gif(gif_file_path, images_dir, filters=None, conv_filters=N
         frame_count += 1
 
 
-def read_frames_from_video(video_file_path, output_dir, filters=None, conv_filters=None):
-    # Obre el vídeo
-    cap = cv2.VideoCapture(video_file_path)
-    # Comprova si el vídeo s'ha obert correctament
-    if not cap.isOpened():
-        print("No s'ha pogut obrir el vídeo.")
-        return
-    # Crea el directori de sortida si no existeix
-    output_dir_path = Path(output_dir)
-    output_dir_path.mkdir(parents=True, exist_ok=True)
-    frame_count = 0
-    # Llegeix i processa cada frame del vídeo
-    while True:
-        ret, frame = cap.read()
-
-        # Comprova si s'ha acabat el vídeo
-        if not ret:
-            break
-        # Aplica els filtres puntuals, si s'han proporcionat
-        if filters:
-            frame = apply_filters(frame, filters)
-        # Aplica els filtres convolucionals, si s'han proporcionat
-        if conv_filters:
-            frame = apply_conv_filters(frame, conv_filters)
-        # Desa el frame com una imatge JPEG
-        cv2.imwrite(str(output_dir / f"frame_{frame_count}.jpeg"), frame)
-        frame_count += 1
-    # Allibera la captura del vídeo
-    cap.release()
-
-
 def read_images_from_zip(input_file, images_dir, filters=None, conv_filters=None):
     with ZipFile(input_file, 'r') as zip_ref:
         zip_ref.extractall(images_dir)
@@ -154,6 +123,44 @@ def read_images_from_zip(input_file, images_dir, filters=None, conv_filters=None
                 img.save(file_path.with_suffix('.jpeg'))
 
 
+def divide_into_tiles(image, num_tiles):
+    """Subdivideix la imatge en el nombre de tessel·les especificat per l'usuari."""
+    height, width = image.shape[:2]
+    tile_height = height // num_tiles
+    tile_width = width // num_tiles
+    tiles = []
+    for i in range(num_tiles):
+        for j in range(num_tiles):
+            tile = image[i*tile_height:(i+1)*tile_height, j*tile_width:(j+1)*tile_width]
+            tiles.append(tile)
+    return tiles
+
+def compare_tiles(tile1, tile2, max_shift):
+    """Compara dues tessel·les utilitzant correlació i retorna si són equivalents o no."""
+    correlation = cv2.matchTemplate(tile1, tile2, cv2.TM_CCORR_NORMED)
+    min_val, max_val, _, _ = cv2.minMaxLoc(correlation)
+    return max_val > max_shift
+
+def remove_equivalent_tiles(reference_image, image, num_tiles, max_shift):
+    """Elimina les tessel·les equivalents de la imatge."""
+    new_image = np.copy(image)
+    reference_tiles = divide_into_tiles(reference_image, num_tiles)
+    tiles = divide_into_tiles(image, num_tiles)
+    for i, tile in enumerate(tiles):
+        if compare_tiles(tile, reference_tiles[i], max_shift):
+            new_image = cv2.rectangle(new_image, (i % num_tiles, i // num_tiles), ((i % num_tiles) + 1, (i // num_tiles) + 1), (0, 0, 0), -1)
+    return new_image
+
+def process_images(images, gop, num_tiles, max_shift):
+    """Processa les imatges segons el GOP i els passos especificats."""
+    processed_images = []
+    for i in range(0, len(images), gop):
+        reference_image = images[i]
+        processed_images.append(reference_image)
+        for image in images[i+1:i+gop]:
+            new_image = remove_equivalent_tiles(reference_image, image, num_tiles, max_shift)
+            processed_images.append(new_image)
+    return processed_images
 @click.command()
 @click.option('-i', '--input', required=True, type=click.Path(exists=True),
               help='Fitxer d’entrada. Argument obligatori.')
@@ -192,15 +199,21 @@ def main(input, output, fps, filters, conv_filters, ntiles, seekrange, gop, qual
         read_images_from_zip(input, images_dir, filter_dict, conv_filter_dict)
     elif input.endswith('.gif'):
         read_images_from_gif(input, images_dir, filter_dict, conv_filter_dict)
-    elif input.endswith(('.avi', '.mp4', '.mpeg')):
-        read_frames_from_video(input, images_dir, filter_dict, conv_filter_dict)
     else:
         print("Format d'arxiu invalid")
         return
 
     if not output:
         play_images(images_dir, fps)
-
-
+    else:
+        image_files=sorted(images_dir.glob('*.jpeg'))
+        images = [cv2.imread(str(file)) for file in image_files]
+        compressed_images=process_images(images, gop, ntiles, seekrange)
+        with ZipFile(output, 'w') as new_zip:
+            for i, image in enumerate(compressed_images):
+                image_filename = f'image_{i}.jpg'
+                # Escriu la imatge comprimida a l'arxiu ZIP amb el nom de fitxer corresponent
+                cv2.imwrite(image_filename, image)
+                new_zip.write(image_filename)
 if __name__ == "__main__":
     main()
