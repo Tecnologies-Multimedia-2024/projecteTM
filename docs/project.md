@@ -1,3 +1,3 @@
 ## Documentació projecte Tecnologies Multimèdia
 
-::: project.__main__.py
+::: tmproject/__main__.py

@@ -30,8 +30,18 @@ CONV_FILTERS_DESCRIPTION = {
                  'kernel indicada.',
 }
 
-
 def apply_filters(img_array, filters):
+    """
+    Aplica una sèrie de filtres puntuals a una imatge representada com una matriu de píxels.
+
+    Args:
+        img_array (numpy.ndarray): La matriu que representa la imatge.
+        filters (dict): Un diccionari que conté els noms dels filtres com a claus i els valors dels
+                        paràmetres dels filtres com a valors.
+
+    Returns:
+        numpy.ndarray: La matriu de la imatge després d'aplicar els filtres puntuals.
+    """
     for filter_name, filter_param in filters.items():
         if filter_name == 'binarization':
             threshold_value = int(filter_param) if filter_param is not None else 50
@@ -53,6 +63,17 @@ def apply_filters(img_array, filters):
 
 
 def apply_conv_filters(img_array, conv_filters):
+    """
+    Aplica una sèrie de filtres convolucionals a una imatge representada com una matriu de píxels.
+
+    Args:
+        img_array (numpy.ndarray): La matriu que representa la imatge.
+        conv_filters (dict): Un diccionari que conté els noms dels filtres convolucionals com a claus i els valors
+                             dels paràmetres dels filtres com a valors.
+
+    Returns:
+        numpy.ndarray: La matriu de la imatge després d'aplicar els filtres convolucionals.
+    """
     for filter_name, filter_param in conv_filters.items():
         if filter_name == 'averaging':
             kernel_size = int(filter_param) if filter_param is not None else 3
@@ -61,7 +82,7 @@ def apply_conv_filters(img_array, conv_filters):
             kernel_size = int(filter_param) if filter_param is not None else 3
             grad_x = cv2.Sobel(img_array, cv2.CV_64F, 1, 0, ksize=kernel_size)
             grad_y = cv2.Sobel(img_array, cv2.CV_64F, 0, 1, ksize=kernel_size)
-            magnitude = np.sqrt(grad_x * 2 + grad_y * 2)
+            magnitude = np.sqrt(grad_x ** 2 + grad_y ** 2)
             img_array = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         elif filter_name == 'sharpening':
             kernel_size = int(filter_param) if filter_param is not None else 3
@@ -79,6 +100,16 @@ def apply_conv_filters(img_array, conv_filters):
 
 
 def play_images(image_array, fps):
+    """
+    Reproduïx una seqüència d'imatges amb una certa velocitat de quadres per segon (FPS).
+
+    Args:
+        image_array (list): Una llista de matrius que representen les imatges.
+        fps (int): El nombre de quadres per segon amb els quals es reproduiran les imatges.
+
+    Returns:
+        None
+    """
     interval = 1.0 / fps
     while True:
         for img in image_array:
@@ -90,6 +121,17 @@ def play_images(image_array, fps):
 
 
 def read_images_from_gif(gif_file_path, filters=None, conv_filters=None):
+    """
+    Llegeix les imatges d'un fitxer GIF i aplica opcionalment filtres.
+
+    Args:
+        gif_file_path (str): La ruta del fitxer GIF.
+        filters (dict): Un diccionari de filtres puntuals i els seus paràmetres.
+        conv_filters (dict): Un diccionari de filtres convolucionals i els seus paràmetres.
+
+    Returns:
+        list: Una llista de matrius que representen les imatges processades.
+    """
     gif = Image.open(gif_file_path)
     processed_frames = []
     for frame in ImageSequence.Iterator(gif):
@@ -105,6 +147,17 @@ def read_images_from_gif(gif_file_path, filters=None, conv_filters=None):
 
 
 def read_images_from_zip(input_file, filters=None, conv_filters=None):
+    """
+    Llegeix imatges d'un fitxer comprimit ZIP i opcionalment aplica filtres a les imatges llegides.
+
+    Args:
+        input_file (str): La ruta del fitxer ZIP que conté les imatges.
+        filters (dict): Un diccionari de filtres puntuals i els seus paràmetres.
+        conv_filters (dict): Un diccionari de filtres convolucionals i els seus paràmetres.
+
+    Returns:
+        list: Una llista de matrius que representen les imatges processades.
+    """
     processed_images = []
     with ZipFile(input_file, 'r') as zipf:
         for file_name in zipf.namelist():
@@ -122,6 +175,16 @@ def read_images_from_zip(input_file, filters=None, conv_filters=None):
 
 
 def divide_into_tiles(image, ntiles):
+    """
+    Divideix una imatge en una llista de tessel·les.
+
+    Args:
+        image (numpy.ndarray): La matriu que representa la imatge.
+        ntiles (int): El nombre de tessel·les en què es dividirà la imatge.
+
+    Returns:
+        tuple: Una tupla que conté la llista de tessel·les, l'alçada de cada tessel·la i l'amplada de cada tessel·la.
+    """
     tiles = []
     h, w = image.shape[:2]
     tile_h, tile_w = h // ntiles, w // ntiles
@@ -133,12 +196,36 @@ def divide_into_tiles(image, ntiles):
 
 
 def compare_tiles(tile1, tile2, quality):
+    """
+    Compara dues teselles i retorna si la similitud entre elles és superior a un cert nivell de qualitat.
+
+    Args:
+        tile1 (numpy.ndarray): La primera tesella.
+        tile2 (numpy.ndarray): La segona tesella.
+        quality (float): El nivell de qualitat mínim per considerar que les teselles són similars.
+
+    Returns:
+        bool: True si la similitud entre les teselles és superior al nivell de qualitat especificat, False altrament.
+    """
     result = cv2.matchTemplate(tile1, tile2, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, _ = cv2.minMaxLoc(result)
     return max_val > quality
 
 
 def process_image(image, ref_image, ntiles, seekrange, quality):
+    """
+    Processa una imatge per a la reconstrucció de regions danificades utilitzant la cerca de teselles coincidents.
+
+    Args:
+        image (numpy.ndarray): La imatge a processar.
+        ref_image (numpy.ndarray): La imatge de referència per a la comparació.
+        ntiles (int): El nombre de teselles en què es dividirà la imatge.
+        seekrange (int): El desplaçament màxim permès en la cerca de teselles coincidents.
+        quality (float): El factor de qualitat que determina quan dues teselles es consideren coincidents.
+
+    Returns:
+        tuple: Una tupla que conté la imatge processada i una llista de les teselles a restaurar.
+    """
     tiles, tile_h, tile_w = divide_into_tiles(image, ntiles)
     ref_tiles, _, _ = divide_into_tiles(ref_image, ntiles)
     tiles_to_restore = []
@@ -160,6 +247,17 @@ def process_image(image, ref_image, ntiles, seekrange, quality):
 
 
 def decode_images(input_zip, gop, ntiles):
+    """
+    Descodifica imatges d'un fitxer ZIP utilitzant un esquema de group of pictures (GOP) i reconstrueix regions danificades.
+
+    Args:
+        input_zip (str): La ruta del fitxer ZIP que conté les imatges.
+        gop (int): El nombre d'imatges entre dos frames de referència.
+        ntiles (int): El nombre de tessel·les en què es dividiran les imatges.
+
+    Returns:
+        list: Una llista de matrius que representen les imatges descodificades.
+    """
     with ZipFile(input_zip, 'r') as zipf:
         image_files = sorted([f for f in zipf.namelist() if f.endswith('.jpeg')])
         json_data = json.loads(zipf.read('all_data.json'))
@@ -182,6 +280,18 @@ def decode_images(input_zip, gop, ntiles):
 
 
 def reconstruct_image(image, tiles_to_restore, tile_h, tile_w):
+    """
+    Reconstrueix una imatge danificada utilitzant teselles prèviament emmagatzemades.
+
+    Args:
+        image (numpy.ndarray): La imatge a reconstruir.
+        tiles_to_restore (list): Una llista de les teselles a restaurar.
+        tile_h (int): L'alçada de cada tesella.
+        tile_w (int): L'amplada de cada tesella.
+
+    Returns:
+        numpy.ndarray: La imatge reconstruïda.
+    """
     for y, x, tile in tiles_to_restore:
         image[y:y + tile_h, x:x + tile_w] = np.array(tile, dtype=np.uint8)
     return image
@@ -206,6 +316,20 @@ def reconstruct_image(image, tiles_to_restore, tile_h, tile_w):
 @click.option('--quality', type=float,
               help='factor de qualitat que determinarà quan dos tessel·les és consideren coincidents.')
 def main(input, output, fps, filters, conv_filters, ntiles, seekrange, gop, quality):
+    """
+    Funció principal que processa les imatges d'entrada, aplica els filtres especificats i guarda les imatges processades en un fitxer ZIP si s'ha proporcionat un nom de fitxer de sortida, o bé les mostra en pantalla si no s'ha proporcionat cap sortida.
+
+    Args:
+        input (str): Ruta del fitxer d'entrada que pot ser un fitxer ZIP o un GIF.
+        output (str): Nom del fitxer de sortida en format ZIP amb les imatges processades i la informació necessària per a la descodificació.
+        fps (int): Nombre d'imatges per segon amb les quals es reproduirà el vídeo.
+        filters (str): Llista de filtres puntuals separats per comes.
+        conv_filters (str): Llista de filtres convolucionals separats per comes.
+        ntiles (int): Nombre de tessel·les en què es dividirà la imatge per a la reconstrucció de regions danificades.
+        seekrange (int): Desplaçament màxim en la cerca de tessel·les coincidents.
+        gop (int): Nombre d'imatges entre dos frames de referència.
+        quality (float): Factor de qualitat que determinarà quan dues tessel·les es consideren coincidents.
+    """
     filter_dict = {}
     conv_filter_dict = {}
     if filters:
