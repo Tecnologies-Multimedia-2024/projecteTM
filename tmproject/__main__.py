@@ -1,8 +1,8 @@
 import json
 import os
 import time
-from pathlib import Path
 from zipfile import ZipFile
+
 import click
 import cv2
 import numpy as np
@@ -88,181 +88,98 @@ def play_images(image_array, fps):
                 return
             time.sleep(interval)
 
-def read_images_from_gif(gif_file_path, images_dir, filters=None, conv_filters=None):
+
+def read_images_from_gif(gif_file_path, filters=None, conv_filters=None):
     gif = Image.open(gif_file_path)
-    frame_count = 0
+    processed_frames = []
     for frame in ImageSequence.Iterator(gif):
         frame = frame.convert('RGB')
         img_array = np.array(frame)
+        img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
         if filters:
             img_array = apply_filters(img_array, filters)
         if conv_filters:
             img_array = apply_conv_filters(img_array, conv_filters)
-        img = Image.fromarray(img_array)
-        img.save(images_dir / f'frame_{frame_count}.jpeg')
-        frame_count += 1
+        processed_frames.append(img_array)
+    return processed_frames
 
 
-def read_images_from_zip(input_file, images_dir, filters=None, conv_filters=None):
-    with ZipFile(input_file, 'r') as zip_ref:
-        zip_ref.extractall(images_dir)
-    for file_path in images_dir.iterdir():
-        if file_path.suffix in ['.jpg', '.png', '.bmp']:
-            img = Image.open(file_path)
-            img_array = np.array(img)
-            if filters:
-                img_array = apply_filters(img_array, filters)
-            if conv_filters:
-                img_array = apply_conv_filters(img_array, conv_filters)
-            img_array = Image.fromarray(img_array)
-            img_array.save(file_path)
-            if file_path.suffix in ['.png', '.bmp']:
-                img = Image.open(file_path)
-                img.save(file_path.with_suffix('.jpeg'))
+def read_images_from_zip(input_file, filters=None, conv_filters=None):
+    processed_images = []
+    with ZipFile(input_file, 'r') as zipf:
+        for file_name in zipf.namelist():
+            if file_name.endswith(('.jpg', '.png', '.bmp')):
+                with zipf.open(file_name) as file:
+                    img = Image.open(file)
+                    img_array = np.array(img)
+                    img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+                    if filters:
+                        img_array = apply_filters(img_array, filters)
+                    if conv_filters:
+                        img_array = apply_conv_filters(img_array, conv_filters)
+                    processed_images.append(img_array)
+    return processed_images
 
 
-def divide_into_tiles(image, nTiles):
-    # Dividim la imatge en tessel·les segons el nombre indicat
+def divide_into_tiles(image, ntiles):
     tiles = []
     h, w = image.shape[:2]
-    tile_h, tile_w = h // nTiles, w // nTiles
-
-    for i in range(nTiles):
-        for j in range(nTiles):
+    tile_h, tile_w = h // ntiles, w // ntiles
+    for i in range(ntiles):
+        for j in range(ntiles):
             tile = image[i * tile_h:(i + 1) * tile_h, j * tile_w:(j + 1) * tile_w]
             tiles.append(tile)
-
     return tiles, tile_h, tile_w
 
 
-def calculate_mean_color(tile):
-    # Calcula el color mitjà de la tessel·la
-    return np.mean(tile, axis=(0, 1))
-
-
 def compare_tiles(tile1, tile2, quality):
-    # Calcula la diferència entre dues tessel·les i determina si són equivalents segons el factor de qualitat
     result = cv2.matchTemplate(tile1, tile2, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, _ = cv2.minMaxLoc(result)
     return max_val > quality
 
 
-def process_image(image, ref_image, nTiles, seekRange, quality):
-    # Processa una imatge comparant-la amb la imatge de referència
-    tiles, tile_h, tile_w = divide_into_tiles(image, nTiles)
-    ref_tiles, _, _ = divide_into_tiles(ref_image, nTiles)
+def process_image(image, ref_image, ntiles, seekrange, quality):
+    tiles, tile_h, tile_w = divide_into_tiles(image, ntiles)
+    ref_tiles, _, _ = divide_into_tiles(ref_image, ntiles)
     tiles_to_restore = []
 
     for i, tile in enumerate(tiles):
-        y = (i // nTiles) * tile_h
-        x = (i % nTiles) * tile_w
-        for dy in range(-seekRange, seekRange + 1):
-            for dx in range(-seekRange, seekRange + 1):
+        y = (i // ntiles) * tile_h
+        x = (i % ntiles) * tile_w
+        for dy in range(-seekrange, seekrange + 1):
+            for dx in range(-seekrange, seekrange + 1):
                 ref_y = y + dy * tile_h
                 ref_x = x + dx * tile_w
                 if 0 <= ref_y < image.shape[0] - tile_h and 0 <= ref_x < image.shape[1] - tile_w:
                     ref_tile = ref_image[ref_y:ref_y + tile_h, ref_x:ref_x + tile_w]
                     if compare_tiles(tile, ref_tile, quality):
-                        image[y:y + tile_h, x:x + tile_w] = calculate_mean_color(tile)
+                        image[y:y + tile_h, x:x + tile_w] = np.mean(tile, axis=(0, 1))
                         tiles_to_restore.append((y, x, tile))
                         break
     return image, tiles_to_restore
 
 
-def reconstruir_tessella(imatge_referencia, info_tesselles, ntiles, seekrange):
-    # Funció per reconstruir una tessel·la a partir de la informació proporcionada
-
-    # Inicialitzar la matriu de la imatge reconstruïda
-    reconstructed_image = imatge_referencia.copy()
-
-    # Iterar sobre la informació de les tessel·les
-    for tessella_info in info_tesselles:
-        y, x, tile_data = tessella_info
-        # Descomprimir la tessel·la
-        tile_data = np.frombuffer(tile_data, dtype=np.uint8)
-        tile_data = np.reshape(tile_data, (ntiles, ntiles, 3))
-
-        # Reubicar la tessel·la a la posició correcta a la imatge reconstruïda
-        start_y = y * ntiles
-        start_x = x * ntiles
-        end_y = start_y + ntiles
-        end_x = start_x + ntiles
-        reconstructed_image[start_y:end_y, start_x:end_x, :] = tile_data
-
-    return reconstructed_image
-
-
-def descodificar_zip(zip_path, gop, ntiles, seekrange):
-    images = []
-    tiles_info = []
-
-    # Obrir el fitxer zip en mode de lectura
-    with ZipFile(zip_path, 'r') as zip_ref:
-        # Llegir i processar les imatges i la informació de les tessel·les
-        for name in zip_ref.namelist():
-            # Si el fitxer és una imatge JPEG
-            if name.endswith('.jpeg'):
-                # Llegir el contingut de l'arxiu
-                with zip_ref.open(name) as image_file:
-                    # Decodificar la imatge
-                    image_data = image_file.read()
-                    nparr = np.frombuffer(image_data, np.uint8)
-                    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                    images.append(image)
-            # Si el fitxer és el fitxer JSON amb la informació de les tessel·les
-            elif name == 'all_data.json':
-                # Llegir el contingut de l'arxiu
-                with zip_ref.open(name) as json_file:
-                    # Deserialitzar les dades JSON
-                    tiles_info = json.load(json_file)
-
-    # Reagrupar les imatges en el GOP
-    gop_images = [images[i:i + gop] for i in range(0, len(images), gop)]
-
-    # Iterar sobre els GOPs i reconstruir les imatges
-    reconstructed_images = []
-    for i, gop_group in enumerate(gop_images):
-        ref_image = gop_group[0].copy()
-        reconstructed_images.append(ref_image)
-
-        # Iterar sobre les imatges del GOP
-        for j in range(1, len(gop_group)):
-            # Reconstruir la tessel·la per a cada imatge
-            reconstructed_tile = reconstruir_tessella(ref_image, tiles_info[i * (gop - 1) + (j - 1)], ntiles,
-                                                      seekrange)
-            reconstructed_images.append(reconstructed_tile)
-
-            # La imatge reconstruïda es converteix en la referència per la següent iteració
-            ref_image = reconstructed_tile
-
-    return reconstructed_images, tiles_info
-
-
-def decode_images(input_zip, output_dir, gop, ntiles):
+def decode_images(input_zip, gop, ntiles):
     with ZipFile(input_zip, 'r') as zipf:
         image_files = sorted([f for f in zipf.namelist() if f.endswith('.jpeg')])
         json_data = json.loads(zipf.read('all_data.json'))
-
-        os.makedirs(output_dir, exist_ok=True)
-
-        ref_image = None
         tile_h, tile_w = None, None
-        decoded_images=[]
+        decoded_images = []
         for i, image_file in tqdm(enumerate(image_files), total=len(image_files), desc='Decoding Images'):
             with zipf.open(image_file) as img_file:
                 image = cv2.imdecode(np.frombuffer(img_file.read(), np.uint8), cv2.IMREAD_COLOR)
 
             if i % gop == 0:
                 ref_image = image.copy()
-                cv2.imwrite(os.path.join(output_dir, image_file), image)
                 if tile_h is None or tile_w is None:
                     tiles, tile_h, tile_w = divide_into_tiles(ref_image, ntiles)
+                decoded_images.append(ref_image)
             else:
                 tiles_to_restore = json_data.pop(0)
                 image = reconstruct_image(image, tiles_to_restore, tile_h, tile_w)
                 decoded_images.append(image)
-                cv2.imwrite(os.path.join(output_dir, image_file), image)
     return decoded_images
+
 
 def reconstruct_image(image, tiles_to_restore, tile_h, tile_w):
     for y, x, tile in tiles_to_restore:
@@ -301,25 +218,20 @@ def main(input, output, fps, filters, conv_filters, ntiles, seekrange, gop, qual
             filter_item.split('[')[0]: filter_item.split('[')[1].split(']')[0] if '[' in filter_item else None
             for filter_item in conv_filters.split(',')
         }
-    images_dir = Path("temp_images")
-    images_dir.mkdir(exist_ok=True)
 
     if input.endswith('.zip'):
-        read_images_from_zip(input, images_dir, filter_dict, conv_filter_dict)
+        images = read_images_from_zip(input, filter_dict, conv_filter_dict)
     elif input.endswith('.gif'):
-        read_images_from_gif(input, images_dir, filter_dict, conv_filter_dict)
+        images = read_images_from_gif(input, filter_dict, conv_filter_dict)
     else:
         print("Format d'arxiu invalid")
         return
-    image_files = sorted(images_dir.glob('*.jpeg'))
-    images = [cv2.imread(str(file)) for file in image_files]
     if not output:
         play_images(images, fps)
     else:
         info = []
         with ZipFile(output, 'w') as zipf:
             ref_image = None
-
             for i, image in tqdm(enumerate(images), total=len(images), desc='Processing Images'):
                 if i % gop == 0:
                     ref_image = image.copy()
@@ -337,7 +249,6 @@ def main(input, output, fps, filters, conv_filters, ntiles, seekrange, gop, qual
                 zipf.writestr(f'frame_{i:04d}.jpeg', image_bytes)
             # Write the JSON data to the ZIP file
             zipf.writestr('all_data.json', json.dumps(info))
-
             zipf.close()
 
             input_size = os.path.getsize(input)
@@ -349,8 +260,8 @@ def main(input, output, fps, filters, conv_filters, ntiles, seekrange, gop, qual
             compression_factor = (1 - (zip_size / input_size)) * 100
             print("Factor de compresión en %: {:.2f}%".format(compression_factor))
 
-        decoded_images=decode_images(output, "prova_decoded.zip", gop, ntiles)
-        play_images(decoded_images,fps)
+        decoded_images = decode_images(output, gop, ntiles)
+        play_images(decoded_images, fps)
 
 
 if __name__ == "__main__":
