@@ -1,0 +1,12 @@
+site_name: Tecnologies Multimedia
+
+theme:
+  name: readthedocs
+
+nav:
+  - Home: index.md
+  - Projecte: project.md
+
+extra:
+  mkdocstrings:
+    debug: true

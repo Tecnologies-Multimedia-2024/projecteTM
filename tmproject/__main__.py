@@ -187,12 +187,14 @@ def divide_into_tiles(image, ntiles):
     """
     tiles = []
     h, w = image.shape[:2]
-    tile_h, tile_w = h // ntiles, w // ntiles
+    tile_h, tile_w = h // ntiles, w // ntiles  # Calculem l'alçada i l'amplada de cada tessel·la.
     for i in range(ntiles):
         for j in range(ntiles):
+            # Extraiem una tessel·la de la imatge i l'afegim a la llista de tessel·les.
             tile = image[i * tile_h:(i + 1) * tile_h, j * tile_w:(j + 1) * tile_w]
             tiles.append(tile)
-    return tiles, tile_h, tile_w
+    return tiles, tile_h, tile_w  # Retornem les tessel·les, l'alçada i l'amplada de cada tessel·la.
+
 
 
 def compare_tiles(tile1, tile2, quality):
@@ -207,7 +209,9 @@ def compare_tiles(tile1, tile2, quality):
     Returns:
         bool: True si la similitud entre les teselles és superior al nivell de qualitat especificat, False altrament.
     """
+    # Utilitzem la funció de coincidència de plantilles per comparar les teselles.
     result = cv2.matchTemplate(tile1, tile2, cv2.TM_CCOEFF_NORMED)
+    # Obtenim el valor màxim de la coincidència.
     _, max_val, _, _ = cv2.minMaxLoc(result)
     return max_val > quality
 
@@ -233,13 +237,17 @@ def process_image(image, ref_image, ntiles, seekrange, quality):
     for i, tile in enumerate(tiles):
         y = (i // ntiles) * tile_h
         x = (i % ntiles) * tile_w
+        # Itera sobre el rang de cerca
         for dy in range(-seekrange, seekrange + 1):
             for dx in range(-seekrange, seekrange + 1):
                 ref_y = y + dy * tile_h
                 ref_x = x + dx * tile_w
+                # Verifica si la tesella de referència està dins dels límits de la imatge
                 if 0 <= ref_y < image.shape[0] - tile_h and 0 <= ref_x < image.shape[1] - tile_w:
+                    # Obté la tesella de referència
                     ref_tile = ref_image[ref_y:ref_y + tile_h, ref_x:ref_x + tile_w]
                     if compare_tiles(tile, ref_tile, quality):
+                        # Restaura la tesella de la imatge i l'afegeix a la llista de teselles a restaurar
                         image[y:y + tile_h, x:x + tile_w] = np.mean(tile, axis=(0, 1))
                         tiles_to_restore.append((y, x, tile))
                         break
@@ -265,13 +273,20 @@ def decode_images(input_zip, gop, ntiles):
         decoded_images = []
         for i, image_file in tqdm(enumerate(image_files), total=len(image_files), desc='Decoding Images'):
             with zipf.open(image_file) as img_file:
+                # Decodifiquem l'imatge
                 image = cv2.imdecode(np.frombuffer(img_file.read(), np.uint8), cv2.IMREAD_COLOR)
 
+            # Si és un frame de referència
             if i % gop == 0:
+                # Copiem l'imatge com a referència
                 ref_image = image.copy()
+                # Si encara no tenim l'alçada o l'amplada de les teselles, les dividim
                 if tile_h is None or tile_w is None:
                     tiles, tile_h, tile_w = divide_into_tiles(ref_image, ntiles)
+                # Afegim la imatge de referència a les imatges descodificades
                 decoded_images.append(ref_image)
+
+            # Si no és un frame de referència
             else:
                 tiles_to_restore = json_data.pop(0)
                 image = reconstruct_image(image, tiles_to_restore, tile_h, tile_w)
@@ -293,9 +308,9 @@ def reconstruct_image(image, tiles_to_restore, tile_h, tile_w):
         numpy.ndarray: La imatge reconstruïda.
     """
     for y, x, tile in tiles_to_restore:
+        # Substituïm la regió  de la imatge amb la tesella emmagatzemada
         image[y:y + tile_h, x:x + tile_w] = np.array(tile, dtype=np.uint8)
     return image
-
 
 @click.command()
 @click.option('-i', '--input', required=True, type=click.Path(exists=True),
