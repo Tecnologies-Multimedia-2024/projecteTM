@@ -32,16 +32,12 @@ CONV_FILTERS_DESCRIPTION = {
 
 def apply_filters(img_array, filters):
     """
-    Aplica una sèrie de filtres puntuals a una imatge representada com una matriu de píxels.
-
-    Args:
-        img_array (numpy.ndarray): La matriu que representa la imatge.
-        filters (dict): Un diccionari que conté els noms dels filtres com a claus i els valors dels
-                        paràmetres dels filtres com a valors.
-
-    Returns:
-        numpy.ndarray: La matriu de la imatge després d'aplicar els filtres puntuals.
-    """
+        Aplica filtres puntuals a una imatge.
+        Arguments: img_array (numpy.ndarray): La imatge a la qual s'aplicaran els filtres. filters (dict): Un
+        diccionari que conté els noms dels filtres com a claus i els seus paràmetres, si en té, com a valors.
+        Returns:
+        numpy.ndarray: La imatge després d'aplicar els filtres.
+        """
     for filter_name, filter_param in filters.items():
         if filter_name == 'binarization':
             threshold_value = int(filter_param) if filter_param is not None else 50
