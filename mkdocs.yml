@@ -38,7 +38,3 @@ nav:
       - "Filtres Normals": "filters.md"
   - Encoder:
       - "Encoder": "encoder.md"
-
-extra_dirs:
-  - images
-
