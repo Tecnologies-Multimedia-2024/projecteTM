@@ -26,3 +26,19 @@ theme:
         name: Switch to light mode
       primary: teal
       accent: lime
+
+nav:
+  - Home:
+      - "Documentació": "index.md"
+  - Team:
+      - "Team": "team.md"
+  - "How to execute the project?":
+      - "Execute": "execute.md"
+  - Filtres:
+      - "Filtres Normals": "filters.md"
+  - Encoder:
+      - "Encoder": "encoder.md"
+
+extra_dirs:
+  - images
+
