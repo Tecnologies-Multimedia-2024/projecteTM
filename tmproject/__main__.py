@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageSequence
 from tqdm import tqdm
+import math
 
 # Descripció dels filtres puntuals
 FILTERS_DESCRIPTION = {
@@ -29,6 +30,18 @@ CONV_FILTERS_DESCRIPTION = {
     'laplacian': 'Filtre convolucional Laplacian per a ressaltar detalls i detectar contorns utilitzant la mida del '
                  'kernel indicada.',
 }
+
+def calculate_psnr(original, compressed):
+    mse = np.mean((original - compressed) ** 2)
+    if mse == 0:
+        return float('inf')
+    max_pixel = 255.0
+    psnr = 20 * math.log10(max_pixel / math.sqrt(mse))
+    return psnr
+
+def calculate_compression_factor(original_size, compressed_size):
+    return (1 - (compressed_size / original_size)) * 100
+
 
 def apply_filters(img_array, filters):
     """
@@ -361,10 +374,12 @@ def main(input, output, fps, filters, conv_filters, ntiles, seekrange, gop, qual
     else:
         print("Format d'arxiu invalid")
         return
+
     if not output:
         play_images(images, fps)
     else:
         info = []
+        start_time = time.time()
         with ZipFile(output, 'w') as zipf:
             ref_image = None
             for i, image in tqdm(enumerate(images), total=len(images), desc='Processing Images'):
@@ -374,28 +389,34 @@ def main(input, output, fps, filters, conv_filters, ntiles, seekrange, gop, qual
                 else:
                     processed_image, tiles_to_restore = process_image(image, ref_image, ntiles, seekrange, quality)
                     tiles_to_restore = [(y, x, tile.tolist()) for y, x, tile in tiles_to_restore]
-
                     info.append(tiles_to_restore)
 
                 _, buffer = cv2.imencode('.jpeg', processed_image)
                 image_bytes = buffer.tobytes()
-
-                # Save the processed image to the zip file
                 zipf.writestr(f'frame_{i:04d}.jpeg', image_bytes)
-            # Write the JSON data to the ZIP file
+
             zipf.writestr('all_data.json', json.dumps(info))
-            zipf.close()
 
-            input_size = os.path.getsize(input)
-            print(f"Mida del arxiu d'entrada {input}: {input_size:,}")
+        compression_time = time.time() - start_time
+        input_size = os.path.getsize(input)
+        zip_size = os.path.getsize(output)
+        compression_factor = (1 - (zip_size / input_size)) * 100
 
-            zip_size = os.path.getsize(output)
-            print(f"Mida del arxiu de sortida {output}: {zip_size:,}")
+        print(f"Mida del arxiu d'entrada {input}: {input_size:,}")
+        print(f"Mida del arxiu de sortida {output}: {zip_size:,}")
+        print("Factor de compressió en %: {:.2f}%".format(compression_factor))
+        print("Temps de compressió: {:.2f} segons".format(compression_time))
 
-            compression_factor = (1 - (zip_size / input_size)) * 100
-            print("Factor de compresión en %: {:.2f}%".format(compression_factor))
-
+        start_time = time.time()
         decoded_images = decode_images(output, gop, ntiles)
+        decoding_time = time.time() - start_time
+
+        psnr_values = [calculate_psnr(images[i], decoded_images[i]) for i in range(len(images))]
+        avg_psnr = np.mean(psnr_values)
+
+        print("Temps de decodificació: {:.2f} segons".format(decoding_time))
+        print("PSNR mitjà: {:.2f} dB".format(avg_psnr))
+
         play_images(decoded_images, fps)
 
 
