@@ -26,6 +26,6 @@ python -m tmproject --input Cubo.zip
 6. `python -m tmproject --input Cubo.zip --filters "negative"`
 7. `python -m tmproject --input Cubo.zip --conv_filters "sobel"`
 8. `python -m tmproject --input Cubo.zip --conv_filters "sharpening"`
-9. `python -m tmproject --input Cubo.zip --ntiles 4 --output "prova.zip" --GOP 2 --seekRange 4 --quality 1`
+9. `python -m tmproject --input Cubo.zip --ntiles 4 --output "prova.zip" --GOP 2 --seekRange 4 --quality 0.9`
 10. `python -m tmproject --input Cubo.zip --ntiles 8 --output "prova.zip" --GOP 2 --seekRange 4 --quality 0.9`
 11. `python -m tmproject --input Cubo.zip --ntiles 4 --output "prova.zip" --GOP 8 --seekRange 8 --quality 0.9`
