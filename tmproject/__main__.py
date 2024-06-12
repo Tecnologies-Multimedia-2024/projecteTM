@@ -81,7 +81,8 @@ def main(input, output, fps, filters, conv_filters, ntiles, seekrange, gop, qual
                 image_bytes = buffer.tobytes()
                 zipf.writestr(f'frame_{i:04d}.jpeg', image_bytes)
 
-            zipf.writestr('all_data.json', json.dumps(info))
+            info_str = "\n".join([str(frame_info) for frame_info in info])
+            zipf.writestr('all_data.txt', info_str)
 
         compression_time = time.time() - start_time
         input_size = os.path.getsize(input)

@@ -1,4 +1,3 @@
-import json
 import time
 from zipfile import ZipFile
 
@@ -179,7 +178,8 @@ def decode_images(input_zip, gop, ntiles):
     """
     with ZipFile(input_zip, 'r') as zipf:
         image_files = sorted([f for f in zipf.namelist() if f.endswith('.jpeg')])
-        json_data = json.loads(zipf.read('all_data.json'))
+        info_str = zipf.read('all_data.txt').decode('utf-8')
+        info = [eval(frame_info) for frame_info in info_str.split('\n')]
         tile_h, tile_w = None, None
         decoded_images = []
         for i, image_file in tqdm(enumerate(image_files), total=len(image_files), desc='Decoding Images'):
@@ -199,7 +199,7 @@ def decode_images(input_zip, gop, ntiles):
 
             # Si no és un frame de referència
             else:
-                tiles_to_restore = json_data.pop(0)
+                tiles_to_restore = info.pop(0)
                 image = reconstruct_image(image, tiles_to_restore, tile_h, tile_w)
                 decoded_images.append(image)
     return decoded_images
