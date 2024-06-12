@@ -14,9 +14,9 @@ from tmproject.utils import *
               help='Nom del fitxer en format propi amb la seqüència d’imatges de sortida i la informació necessària '
                    'per la descodificació.')
 @click.option('--fps', default=25, type=int, help='nombre d’imatges per segon amb les quals és reproduirà el vídeo.')
-@click.option('--filters', help='''Lista de filtros puntuales separados por comas.
+@click.option('--filters', help='''Llista de filtres puntuals separats per comes.
 {}'''.format('\n'.join([f"{key}: {val}\n" for key, val in FILTERS_DESCRIPTION.items()])))
-@click.option('--conv_filters', help='''Lista de filtros convolucionales separados por comas.
+@click.option('--conv_filters', help='''Llista de filtres convolucionals separats per comes.
 {}'''.format('\n'.join([f"{key}: {val}\n" for key, val in CONV_FILTERS_DESCRIPTION.items()])))
 @click.option('--ntiles', type=int,
               help='nombre de tessel·les en la qual dividir la imatge. Es poden indicar diferents valors per l’eix '
