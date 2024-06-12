@@ -34,7 +34,9 @@ nav:
       - "Team": "team.md"
   - "How to execute the project?":
       - "Execute": "execute.md"
-  - Filtres:
-      - "Filtres Normals": "filters.md"
-  - Encoder:
-      - "Encoder": "encoder.md"
+  - Filters:
+      - "Filters": "filters.md"
+  - Processing images:
+      - "Processing images": "encoder.md"
+  - Utils:
+      - "Utils": "utils.md"

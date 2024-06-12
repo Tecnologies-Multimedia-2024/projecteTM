@@ -1,7 +1,8 @@
-# Encoder
+# Processing images
 
 ## divide_into_tiles(image, ntiles)
 Divideix una imatge en una llista de tessel·les.
+
 - **Args:**
     - `image` (numpy.ndarray): La matriu que representa la imatge.
     - `ntiles` (int): El nombre de tessel·les en què es dividirà la imatge.
@@ -10,6 +11,7 @@ Divideix una imatge en una llista de tessel·les.
 
 ## compare_tiles(tile1, tile2, quality)
 Compara dues teselles i retorna si la similitud entre elles és superior a un cert nivell de qualitat.
+
 - **Args:**
     - `tile1` (numpy.ndarray): La primera tesella.
     - `tile2` (numpy.ndarray): La segona tesella.
@@ -19,6 +21,7 @@ Compara dues teselles i retorna si la similitud entre elles és superior a un ce
 
 ## process_image(image, ref_image, ntiles, seekrange, quality)
 Processa una imatge per a la reconstrucció de regions danificades utilitzant la cerca de teselles coincidents.
+
 - **Args:**
     - `image` (numpy.ndarray): La imatge a processar.
     - `ref_image` (numpy.ndarray): La imatge de referència per a la comparació.
@@ -30,6 +33,7 @@ Processa una imatge per a la reconstrucció de regions danificades utilitzant la
 
 ## decode_images(input_zip, gop, ntiles)
 Descodifica imatges d'un fitxer ZIP utilitzant un esquema de group of pictures (GOP) i reconstrueix regions danificades.
+
 - **Args:**
     - `input_zip` (str): La ruta del fitxer ZIP que conté les imatges.
     - `gop` (int): El nombre d'imatges entre dos frames de referència.
@@ -39,6 +43,7 @@ Descodifica imatges d'un fitxer ZIP utilitzant un esquema de group of pictures (
 
 ## reconstruct_image(image, tiles_to_restore, tile_h, tile_w)
 Reconstrueix una imatge danificada utilitzant teselles prèviament emmagatzemades.
+
 - **Args:**
     - `image` (numpy.ndarray): La imatge a reconstruir.
     - `tiles_to_restore` (list): Una llista de les teselles a restaurar.
